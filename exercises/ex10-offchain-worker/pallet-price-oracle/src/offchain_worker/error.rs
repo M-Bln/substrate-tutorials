@@ -16,8 +16,9 @@ impl core::fmt::Display for OffchainWorkerError {
 		match self {
 			OffchainWorkerError::Http(e) => write!(f, "Http error occured: {:?}", e),
 			OffchainWorkerError::Request(e) => write!(f, "Http error occured: {:?}", e),
-			OffchainWorkerError::Json(e) =>
-				write!(f, "Json deserialization error occured: {:?}", e),
+			OffchainWorkerError::Json(e) => {
+				write!(f, "Json deserialization error occured: {:?}", e)
+			},
 			OffchainWorkerError::ParsePrice(e) => write!(f, "f64 parsing error occured: {:?}", e),
 			OffchainWorkerError::WrongPair => write!(f, "Wrong pair price"),
 		}
