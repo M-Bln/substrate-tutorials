@@ -141,10 +141,17 @@ pub mod pallet {
 			symbol: BoundedVec<u8, T::MaxLength>,
 		) -> DispatchResult {
 			let origin = ensure_signed(origin)?;
-		    Self::ensure_is_owner(asset_id, origin)?;
-		    let asset_metadata = AssetMetadata {name : name.clone(), symbol : symbol.clone()} ;
-		    Metadata::<T>::set(asset_id, Some(asset_metadata));
-		    Self::deposit_event(Event::MetadataSet{asset_id, name, symbol});
+			Self::ensure_is_owner(asset_id, origin)?;
+			let asset_metadata = AssetMetadata {
+				name: name.clone(),
+				symbol: symbol.clone(),
+			};
+			Metadata::<T>::set(asset_id, Some(asset_metadata));
+			Self::deposit_event(Event::MetadataSet {
+				asset_id,
+				name,
+				symbol,
+			});
 			// TODO:
 			// - Create a new AssetMetadata instance based on the call arguments.
 			// - Insert this metadata in the Metadata storage, under the asset_id key.
@@ -163,6 +170,8 @@ pub mod pallet {
 			// TODO:
 			// - Ensure the extrinsic origin is a signed transaction.
 			// - Ensure the caller is the asset owner.
+			let origin = ensure_signed(origin)?;
+			Self::ensure_is_owner(asset_id, origin.clone())?;
 
 			let mut minted_amount = 0;
 
@@ -181,7 +190,13 @@ pub mod pallet {
 			});
 
 			// TODO: Deposit a `Minted` event.
-
+			if let Some(current_asset) = Asset::<T>::get(asset_id) {
+				Self::deposit_event(Event::Minted {
+					asset_id,
+					owner: to,
+					total_supply: current_asset.supply,
+				});
+			}
 			Ok(())
 		}
 
