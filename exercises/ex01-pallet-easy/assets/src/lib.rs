@@ -14,7 +14,9 @@ mod tests;
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
+	use frame_support::sp_runtime;
 	use frame_system::pallet_prelude::*;
+	use std::cmp;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -196,18 +198,37 @@ pub mod pallet {
 					owner: to,
 					total_supply: current_asset.supply,
 				});
+				Ok(())
+			} else {
+				Err(DispatchError::from("current asset does not exist"))
 			}
-			Ok(())
 		}
 
 		#[pallet::weight(0)]
 		pub fn burn(origin: OriginFor<T>, asset_id: AssetId, amount: u128) -> DispatchResult {
 			// TODO:
 			// - Ensure the extrinsic origin is a signed transaction.
-			// - Mutate the total supply.
-			// - Mutate the account balance.
-			// - Emit a `Burned` event.
+			let origin = ensure_signed(origin)?;
 
+			// - Mutate the total supply.
+			let mut old_supply = 0;
+			let burned_amount = cmp::min(amount, Account::<T>::get(asset_id, origin.clone()));
+			Asset::<T>::try_mutate(asset_id, |maybe_details| -> DispatchResult {
+				let details = maybe_details.as_mut().ok_or(Error::<T>::UnknownAssetId)?;
+				old_supply = details.supply;
+				details.supply -= burned_amount;
+				Ok(())
+			})?;
+			// - Mutate the account balance.
+			Account::<T>::mutate(asset_id, origin.clone(), |balance| {
+				*balance = balance.saturating_sub(amount);
+			});
+
+			Self::deposit_event(Event::Burned {
+				asset_id,
+				owner: origin,
+				total_supply: old_supply - burned_amount,
+			});
 			Ok(())
 		}
 
@@ -220,10 +241,35 @@ pub mod pallet {
 		) -> DispatchResult {
 			// TODO:
 			// - Ensure the extrinsic origin is a signed transaction.
-			// - Mutate both account balances.
-			// - Emit a `Transferred` event.
+			let origin = ensure_signed(origin)?;
 
-			Ok(())
+			if let Some(_) = Asset::<T>::get(asset_id) {
+				// - Mutate both account balances.
+				let transferred_amount =
+					cmp::min(amount, Account::<T>::get(asset_id, origin.clone()));
+
+				Account::<T>::mutate(asset_id, origin.clone(), |balance| {
+					*balance -= transferred_amount;
+				});
+
+				Account::<T>::mutate(asset_id, to.clone(), |balance| {
+					*balance += transferred_amount;
+				});
+				// - Emit a `Transferred` event.
+				Self::deposit_event(Event::Transferred {
+					asset_id,
+					from: origin,
+					to,
+					amount: transferred_amount,
+				});
+				Ok(())
+			} else {
+				Err(DispatchError::Module(sp_runtime::ModuleError {
+					index: 1,
+					error: [0, 0, 0, 0],
+					message: Some("UnknownAssetId"),
+				}))
+			}
 		}
 	}
 }
