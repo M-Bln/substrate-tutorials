@@ -10,12 +10,14 @@ mod tests;
 pub mod types;
 
 use frame_support::ensure;
+use std::cmp;
 use types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
+	use frame_support::sp_runtime;
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::config]
@@ -94,11 +96,52 @@ pub mod pallet {
 			metadata: BoundedVec<u8, T::MaxLength>,
 			supply: u128,
 		) -> DispatchResult {
+			let origin_account_id = ensure_signed(origin)?;
+			if supply <= 0 {
+				return Err(DispatchError::from(Error::<T>::NoSupply));
+			}
+			let asset_id: UniqueAssetId = Nonce::<T>::get();
+			Nonce::<T>::set(asset_id + 1);
+			let asset_details = UniqueAssetDetails::<T, T::MaxLength>::new(
+				origin_account_id.clone(),
+				metadata,
+				supply,
+			);
+			UniqueAsset::<T>::set(asset_id, Some(asset_details));
+			Account::<T>::set(asset_id, origin_account_id.clone(), supply);
+			Self::deposit_event(Event::<T>::Created {
+				creator: origin_account_id,
+				asset_id,
+			});
 			Ok(())
 		}
 
 		#[pallet::weight(0)]
 		pub fn burn(origin: OriginFor<T>, asset_id: UniqueAssetId, amount: u128) -> DispatchResult {
+			// - Ensure the extrinsic origin is a signed transaction.
+			let origin = ensure_signed(origin)?;
+
+			// - Mutate the total supply.
+			let old_supply = Account::<T>::get(asset_id, origin.clone());
+			let burned_amount = cmp::min(amount, old_supply);
+			UniqueAsset::<T>::try_mutate(asset_id, |maybe_details| -> DispatchResult {
+				let details = maybe_details.as_mut().ok_or(Error::<T>::UnknownAssetId)?;
+				details.supply -= burned_amount;
+				Ok(())
+			})?;
+			if old_supply == 0 {
+				return Err(DispatchError::from(Error::<T>::NotOwned));
+			}
+			// - Mutate the account balance.
+			Account::<T>::mutate(asset_id, origin.clone(), |balance| {
+				*balance = balance.saturating_sub(amount);
+			});
+
+			Self::deposit_event(Event::Burned {
+				asset_id,
+				owner: origin,
+				total_supply: old_supply - burned_amount,
+			});
 			Ok(())
 		}
 
@@ -109,7 +152,40 @@ pub mod pallet {
 			amount: u128,
 			to: T::AccountId,
 		) -> DispatchResult {
-			Ok(())
+			// TODO:
+			// - Ensure the extrinsic origin is a signed transaction.
+			let origin = ensure_signed(origin)?;
+
+			if let Some(_) = UniqueAsset::<T>::get(asset_id) {
+				// - Mutate both account balances.
+				let old_supply = Account::<T>::get(asset_id, origin.clone());
+				if old_supply <= 0 {
+					return Err(DispatchError::from(Error::<T>::NotOwned));
+				}
+				let transferred_amount = cmp::min(amount, old_supply);
+
+				Account::<T>::mutate(asset_id, origin.clone(), |balance| {
+					*balance -= transferred_amount;
+				});
+
+				Account::<T>::mutate(asset_id, to.clone(), |balance| {
+					*balance += transferred_amount;
+				});
+				// - Emit a `Transferred` event.
+				Self::deposit_event(Event::Transferred {
+					asset_id,
+					from: origin,
+					to,
+					amount: transferred_amount,
+				});
+				Ok(())
+			} else {
+				Err(DispatchError::Module(sp_runtime::ModuleError {
+					index: 1,
+					error: [0, 0, 0, 0],
+					message: Some("UnknownAssetId"),
+				}))
+			}
 		}
 	}
 }
