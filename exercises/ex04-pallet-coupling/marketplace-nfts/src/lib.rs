@@ -9,6 +9,7 @@ pub use pallet::*;
 mod tests;
 pub mod types;
 
+use codec::EncodeLike;
 use frame_support::ensure;
 use sp_runtime::traits::{AtLeast32BitUnsigned, One, Saturating};
 use types::*;
@@ -41,7 +42,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn account)]
 	/// The holdings of a specific account for a specific asset.
-	pub(super) type Account<T: Config> = StorageDoubleMap<
+	pub type Account<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::NFTId,
