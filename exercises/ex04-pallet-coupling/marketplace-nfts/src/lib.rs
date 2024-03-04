@@ -208,10 +208,23 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> Sellable<T::AccountId, T::NFTId> for Pallet<T> {
 	fn amount_owned(nft_id: T::NFTId, account: T::AccountId) -> u128 {
-		todo!("return the amount of nft_id owned by account")
+		Account::<T>::get(nft_id, account)
+		//		todo!("return the amount of nft_id owned by account")
 	}
 
 	fn transfer(nft_id: T::NFTId, from: T::AccountId, to: T::AccountId, amount: u128) -> u128 {
-		todo!("do the transfer")
+		let old_amount = Self::amount_owned(nft_id, from.clone());
+		match Self::transfer(
+			<T as frame_system::Config>::Origin::from(frame_system::RawOrigin::Signed(
+				from.clone(),
+			)),
+			nft_id,
+			amount,
+			to,
+		) {
+			Ok(()) => old_amount - Self::amount_owned(nft_id, from),
+			Err(_) => 0,
+		}
+		//		todo!("do the transfer")
 	}
 }
