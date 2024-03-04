@@ -24,7 +24,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::{ensure_signed, pallet_prelude::*};
-	use pallet_marketplace_nfts::{Account, Config as NFTConfig, Pallet as NFTPallet};
+	use pallet_marketplace_nfts::{Config as NFTConfig, Pallet as NFTPallet};
 	#[pallet::config]
 	// TODO: add a dependency on pallet_marketplace_nft on the previous line
 	pub trait Config: frame_system::Config + scale_info::TypeInfo + NFTConfig {
@@ -59,7 +59,7 @@ pub mod pallet {
 	pub type NFTsForSale<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		NFTId,
+		T::NFTId,
 		Blake2_128Concat,
 		T::AccountId,
 		SaleData<T>,
@@ -79,7 +79,7 @@ pub mod pallet {
 
 			ensure!(amount > 0, Error::<T>::ZeroAmount);
 			// TODO: get the amount owned from the pallet_nft account storage, instead of 0
-			let owned = Account::<T>::get(nft_id, origin.clone());
+			let owned = NFTPallet::<T>::account(nft_id, origin.clone());
 			ensure!(owned >= amount, Error::<T>::NotEnoughOwned);
 
 			NFTsForSale::<T>::insert(nft_id, origin.clone(), SaleData { price, amount });
@@ -98,8 +98,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let buyer = ensure_signed(origin)?;
 
-			let sale_data = NFTsForSale::<T>::get(nft_id, seller.clone());
-			let owned = Account::<T>::get(nft_id, seller.clone());
+			let sale_data = NFTsForSale::<T>::get(nft_id.clone(), seller.clone());
+			let owned = NFTPallet::<T>::account(nft_id, seller.clone());
 			//todo!("get the amount owned from the pallet_nft account storage");
 
 			ensure!(amount <= sale_data.amount, Error::<T>::NotEnoughInSale);

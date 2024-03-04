@@ -42,7 +42,7 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn account)]
 	/// The holdings of a specific account for a specific asset.
-	pub type Account<T: Config> = StorageDoubleMap<
+	pub(super) type Account<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		T::NFTId,
