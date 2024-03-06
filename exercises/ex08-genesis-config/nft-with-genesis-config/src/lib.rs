@@ -49,6 +49,24 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
+			for asset in &self.genesis_asset_list {
+				let asset_id = Pallet::<T>::nonce();
+				Pallet::<T>::inner_mint(
+					asset.0.clone(),
+					BoundedVec::<u8, T::MaxLength>::try_from(asset.1.clone()).unwrap(),
+					asset.2.clone(),
+				)
+				.unwrap();
+				for (owner, amount) in &asset.3 {
+					Pallet::<T>::inner_transfer(
+						asset_id,
+						asset.0.clone(),
+						owner.clone(),
+						amount.clone(),
+					)
+					.unwrap();
+				}
+			}
 			// TODO
 			// iterate over the `GenesisAssetList` and:
 			// 1) mint each asset
