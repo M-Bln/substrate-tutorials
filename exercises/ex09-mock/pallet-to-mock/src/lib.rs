@@ -9,8 +9,8 @@ use frame_support::{
 
 // TODO: Uncomment the following lines and fill the tests/mock.rs file
 // in order for the tests to compile and run successfully
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 pub type BalanceOf<T> =
 	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -64,6 +64,7 @@ pub mod pallet {
 				.checked_div(&price.checked_into().ok_or(Error::<T>::Overflow)?)
 				.ok_or(Error::<T>::Overflow)?;
 
+			//		    <T as Config>::Currency::deposit_creating(&origin, amount_to_mint);
 			<T as Config>::Currency::deposit_into_existing(&origin, amount_to_mint)
 				.map_err(|_| Error::<T>::CallerShouldExist)?;
 
