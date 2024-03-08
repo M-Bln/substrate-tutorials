@@ -7,7 +7,8 @@ pub enum OffchainWorkerError {
 	Http(HttpError),
 	Request(http::Error),
 	Json(serde_json::Error),
-	ParsePrice(<f64 as FromStr>::Err),
+    ParsePrice(<f64 as FromStr>::Err),
+    ParsePriceF64,
 	WrongPair,
 }
 
@@ -20,7 +21,8 @@ impl core::fmt::Display for OffchainWorkerError {
 				write!(f, "Json deserialization error occured: {:?}", e)
 			},
 			OffchainWorkerError::ParsePrice(e) => write!(f, "f64 parsing error occured: {:?}", e),
-			OffchainWorkerError::WrongPair => write!(f, "Wrong pair price"),
+		    OffchainWorkerError::WrongPair => write!(f, "Wrong pair price"),
+		    _ => write!(f, "Other OffChainWorkerError"),
 		}
 	}
 }

@@ -12,7 +12,9 @@ use frame_support::log;
 use serde::Deserialize;
 use serde_json::{Value,Number};
 use sp_arithmetic::{FixedI64, FixedPointNumber};
-use frame_support::sp_io::offchain::{Duration,timestamp};
+use frame_support::sp_io::offchain::{timestamp};
+use sp_core::offchain::{Duration};
+use frame_system::offchain::{SubmitTransaction};
 
 #[derive(Debug, Deserialize)]
 struct PairBuyPrice {
@@ -40,31 +42,25 @@ pub(crate) fn fetch_btc_price() -> Result<FixedI64, OffchainWorkerError> {
 	return Err(OffchainWorkerError::Request(http::Error::Unknown));
     }
     let body = response.body().collect::<Vec<u8>>();
-    let body_json = serde_json::from_slice(&body)?;
-    if let  Some(Value::Number(price)) = body_json.get("amount") {
-	if let Some(price_i64) = price.as_i64() {
-	    return Ok(FixedI64::from(price_i64));
-	} else {
-	   // return Err(OffchainWorkerError::ParsePrice(<f64 as FromStr>::Err));
-	    return Err(OffchainWorkerError::Request(http::Error::Unknown));
+    let body_json : Value = serde_json::from_slice(&body)?;
+    if let  Some(Value::String(price)) = body_json.get("data").and_then(|v| v.get("amount")) {
+	match <f64 as FromStr>::from_str(price) {
+	    Ok(f64_price) => Ok(f64_to_fixed_i64(f64_price)),
+	    Err(e) => Err(OffchainWorkerError::ParsePrice(e)), 
 	}
     } else {
-	return Err(OffchainWorkerError::Request(http::Error::Unknown));
+	Err(OffchainWorkerError::Request(http::Error::Unknown))
     }
-    // Create a str slice from the body.
-    // let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
-    // 	log::warn!("No UTF8 body");
-    // 	http::Error::Unknown
-    // })?;
-    // Ok(Default::default())
 }
 
 impl<T: Config> Pallet<T> {
 	pub(crate) fn fetch_btc_price_and_send_unsigned_transaction() -> Result<(), String> {
-		// Todo: call `fetch_btc_price` and use the return to submit an unsigned transaction
-		// containing a call to `set_btc_price`
-
-		Ok(())
+	    // Todo: call `fetch_btc_price` and use the return to submit an unsigned transaction
+	    // containing a call to `set_btc_price`
+	    let btc_price = fetch_btc_price().unwrap();
+	    let call  = Call::set_btc_price {btc_price};
+	    SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).unwrap();
+	    Ok(())
 	}
 }
 

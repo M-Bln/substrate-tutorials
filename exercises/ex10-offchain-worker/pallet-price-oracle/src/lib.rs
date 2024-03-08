@@ -46,9 +46,10 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn offchain_worker(_n: BlockNumberFor<T>) {
-			// TODO: call `fetch_btc_price_and_send_unsigned_transaction` and log any error
-		}
+	    fn offchain_worker(_n: BlockNumberFor<T>) {
+		Self::fetch_btc_price_and_send_unsigned_transaction().unwrap();
+		// TODO: call `fetch_btc_price_and_send_unsigned_transaction` and log any error
+	    }
 	}
 
 	#[pallet::error]
@@ -57,14 +58,17 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(0)]
-		pub fn set_btc_price(origin: OriginFor<T>, btc_price: FixedI64) -> DispatchResult {
+	    pub fn set_btc_price(origin: OriginFor<T>, btc_price: FixedI64) -> DispatchResult {
+		ensure_none(origin)?;
+		BTCPrice::<T>::set(Some(btc_price));
+		Self::deposit_event(Event::BtcPriceSet(btc_price));
 			// TODO:
 			// - ensure origin is none
 			// - set BTCPrice storage
 			// - emit `BtcPriceSet` event
 
-			Ok(())
-		}
+		Ok(())
+	    }
 	}
 
 	#[pallet::validate_unsigned]
@@ -80,7 +84,8 @@ pub mod pallet {
 			// TODO: implemente some kind of validation
 			// It should accept calls to `set_btc_price` and refuse any other
 
-			InvalidTransaction::Call.into()
+		    //InvalidTransaction::Call.into();
+		    Ok(Default::default())
 		}
 	}
 }
